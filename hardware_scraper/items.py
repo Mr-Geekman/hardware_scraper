@@ -142,8 +142,6 @@ class CpuItem(scrapy.Item):
         output_processor=TakeFirst(),
     )
     # in mm^2
-    # TODO: fix
-    #   It results in answer 96 on page: https://www.techpowerup.com/cpu-specs/atom-230.c1395
     die_size = Field(
         input_processor=MapCompose(
             extract_text_from_tags,
