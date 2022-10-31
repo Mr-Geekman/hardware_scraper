@@ -15,7 +15,7 @@ async def async_sleep(delay, return_value=None):
 class TooManyRequestsRetryMiddleware(RetryMiddleware):
     """Modifies RetryMiddleware to delay retries on status 429."""
 
-    DEFAULT_DELAY = 300  # Delay in seconds.
+    DEFAULT_DELAY = 60  # Delay in seconds.
     MAX_DELAY = 1800  # Sometimes, RETRY-AFTER has absurd values
 
     async def process_response(self, request, response, spider):

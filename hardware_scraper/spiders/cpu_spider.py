@@ -1,11 +1,12 @@
 import datetime
-import logging
 import re
 
 import scrapy
 from scrapy.loader import ItemLoader
 
-from hardware_scraper.items import CpuItem
+from hardware_scraper.items import CPUItem
+from hardware_scraper.spiders.utils import find_table
+from hardware_scraper.spiders.utils import load_table_dict
 
 
 class CPUSpider(scrapy.Spider):
@@ -42,7 +43,7 @@ class CPUSpider(scrapy.Spider):
 
     def parse_generation(self, response):
         # check if we are on the expected page (necessary if using proxies)
-        if not response.css("table.processors tr td a::attr(href)").getall():
+        if not response.css("select#generation").get():
             yield scrapy.Request(url=response.url, dont_filter=True)
 
         urls = response.css("table.processors tr td a::attr(href)").getall()
@@ -50,22 +51,13 @@ class CPUSpider(scrapy.Spider):
             yield response.follow(url, self.parse_cpu)
 
     def _find_table(self, sections, table_name):
-        try:
-            return next(
-                iter(
-                    section
-                    for section in sections
-                    if section.css("h1::text").get() == table_name
-                )
-            )
-        except StopIteration:
-            return None
+        return find_table(sections=sections, table_name=table_name, css="h1::text")
 
     def _get_table_dict(self, table):
         if table is None:
             return {}
 
-        keys = table.css("table th::text").getall()
+        keys = table.css("section.details table th::text").getall()
         values = table.css("section.details table td").getall()
 
         keys = [key.strip().rstrip(":") for key in keys]
@@ -73,23 +65,6 @@ class CPUSpider(scrapy.Spider):
 
         table_dict = {key: value for key, value in zip(keys, values)}
         return table_dict
-
-    def _load_table_dict(self, loader, key_mapping, table_dict, cpu_full_name):
-        for key in key_mapping:
-            dict_keys = key_mapping[key]
-            if not isinstance(dict_keys, list):
-                dict_keys = [dict_keys]
-
-            dict_values = [table_dict.get(x) for x in dict_keys]
-            dict_values = [x for x in dict_values if x is not None]
-            if len(dict_values) == 1:
-                loader.add_value(key, dict_values[0])
-            elif len(dict_values) > 0:
-                raise ValueError(
-                    f"Many keys are possible for key: {key}, dict_keys: {dict_keys}"
-                )
-            else:
-                logging.info(f"No info on key: {key} on {cpu_full_name}")
 
     def parse_cpu(self, response):
         # check if we are on the expected page (necessary if using proxies)
@@ -124,7 +99,7 @@ class CPUSpider(scrapy.Spider):
             notes = None
 
         # load values
-        loader = ItemLoader(item=CpuItem(), response=response)
+        loader = ItemLoader(item=CPUItem(), response=response)
 
         # load model values
         loader.add_value("cpu_full_name", cpu_full_name)
@@ -137,11 +112,12 @@ class CPUSpider(scrapy.Spider):
             "process_size": "Process Size",
             "die_size": "Die Size",
         }
-        self._load_table_dict(
+        load_table_dict(
             loader=loader,
             key_mapping=details_key_mapping,
             table_dict=details,
-            cpu_full_name=cpu_full_name,
+            full_name=cpu_full_name,
+            logger=self.logger,
         )
 
         # load performance values
@@ -151,11 +127,12 @@ class CPUSpider(scrapy.Spider):
             "unlocked_multiplier": "Multiplier Unlocked",
             "tdp": "TDP",
         }
-        self._load_table_dict(
+        load_table_dict(
             loader=loader,
             key_mapping=performance_key_mapping,
             table_dict=performance,
-            cpu_full_name=cpu_full_name,
+            full_name=cpu_full_name,
+            logger=self.logger,
         )
 
         # load architecture values
@@ -166,11 +143,12 @@ class CPUSpider(scrapy.Spider):
             "codename": "Codename",
             "generation": "Generation",
         }
-        self._load_table_dict(
+        load_table_dict(
             loader=loader,
             key_mapping=architecture_key_mapping,
             table_dict=architecture,
-            cpu_full_name=cpu_full_name,
+            full_name=cpu_full_name,
+            logger=self.logger,
         )
 
         # load cores values
@@ -179,11 +157,12 @@ class CPUSpider(scrapy.Spider):
             "number_of_threads": "# of Threads",
             "integrated_graphics": "Integrated Graphics",
         }
-        self._load_table_dict(
+        load_table_dict(
             loader=loader,
             key_mapping=cores_key_mapping,
             table_dict=cores,
-            cpu_full_name=cpu_full_name,
+            full_name=cpu_full_name,
+            logger=self.logger,
         )
 
         # load cache values
@@ -195,11 +174,12 @@ class CPUSpider(scrapy.Spider):
             "cache_l3": "Cache L3",
             "cache_l3_type": "Cache L3",
         }
-        self._load_table_dict(
+        load_table_dict(
             loader=loader,
             key_mapping=cache_key_mapping,
             table_dict=cache,
-            cpu_full_name=cpu_full_name,
+            full_name=cpu_full_name,
+            logger=self.logger,
         )
 
         # load features
