@@ -66,7 +66,6 @@ class GPUSpider(scrapy.Spider):
         table_dict = {key: value for key, value in zip(keys, values)}
         return table_dict
 
-    # TODO: complete parsing
     def parse_gpu(self, response):
         # check if we are on the expected page (necessary if using proxies)
         if not response.css("h1.gpudb-name::text").get():
